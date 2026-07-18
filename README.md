@@ -1,43 +1,50 @@
 # GameLingo
 
-GameLingo es una aplicación nativa para macOS que traduce al español el texto en inglés visible en un juego.
+GameLingo is a native macOS menu bar app that captures text from games and translates it into the language you choose.
 
-## Flujo de uso
+Screen capture, text recognition, and translation all run locally using Apple's ScreenCaptureKit, Vision, and Translation frameworks. No screenshots or recognized text are sent to a third-party service.
 
-1. Abre `GameLingo.app`. Aparecerá un icono de traducción en la barra de menús.
-2. Presiona `⌥⌘T` desde cualquier aplicación. Puedes cambiar este atajo en **Ajustes**.
-3. Arrastra para seleccionar el diálogo en inglés.
-4. GameLingo mostrará la traducción en una tarjeta flotante.
-5. Usa **Copiar** para llevar la traducción al portapapeles o `Esc` para cerrar.
+## Features
 
-La captura, el reconocimiento de texto y la traducción se procesan localmente con ScreenCaptureKit, Vision y Translation de Apple.
+- Configurable source and target languages based on the languages supported by Apple on your Mac.
+- Region capture with a customizable global shortcut (`⌥⌘T` by default).
+- Persistent **Repeat Last Region** shortcut (`⌥⌘R`).
+- Experimental **Live Subtitles** mode (`⌥⌘S`) with dialogue-change detection.
+- Floating translation card that works over full-screen apps and Spaces.
+- Optional original text and a one-click copy action.
+- Multi-display region selection.
 
-## Atajos y modos
+## How to use
 
-- **Traducir una región:** `⌥⌘T` de forma predeterminada. Es completamente configurable.
-- **Repetir última región:** `⌥⌘R`. Conserva la zona incluso después de reiniciar GameLingo.
-- **Subtítulos automáticos:** `⌥⌘S`. Selecciona una zona una vez y GameLingo detecta los cambios de diálogo.
+1. Open `GameLingo.app`. A translation icon appears in the menu bar.
+2. Open **Settings** and choose the source and target languages.
+3. Press `⌥⌘T` from any app.
+4. Drag over the text you want to translate.
+5. GameLingo shows the translation in a floating card. Press `Esc` to close it.
 
-También puedes iniciar o detener todos estos modos desde el icono de GameLingo en la barra de menús.
+You can change the main shortcut in **Settings**.
 
-### Subtítulos automáticos (experimental)
+### Live Subtitles (experimental)
 
-1. Presiona `⌥⌘S` y selecciona la caja de diálogo del juego.
-2. GameLingo revisará esa zona periódicamente y solo traducirá cuando detecte un cambio.
-3. Presiona `⌥⌘S` nuevamente para detener el modo.
+1. Press `⌥⌘S` and select the game's dialogue box.
+2. GameLingo checks that region periodically and translates only when the dialogue changes.
+3. Press `⌥⌘S` again to stop live mode.
 
-La captura continua excluye las ventanas de GameLingo para que el overlay no vuelva a ser leído por el OCR. La región debe estar completamente dentro de un solo monitor.
+GameLingo excludes its own windows from continuous capture so the translation card is not read back by OCR. A live subtitle region must fit entirely within one display.
 
-Desde **Ajustes** puedes cambiar la frecuencia de revisión entre 0.5 y 2 segundos, ocultar el texto original y grabar un atajo nuevo.
+## Language support
 
-## Requisitos
+GameLingo loads the language list directly from Apple Translation on each Mac and uses a built-in fallback list if the system service is temporarily unavailable. Source languages are further limited to those that Apple Vision can recognize with OCR. The first translation for a new pair may ask macOS to download the required language models.
 
-- macOS 15.2 o posterior.
-- Swift 6 / Xcode Command Line Tools. Xcode completo no es necesario para compilar el MVP.
-- Permiso de **Grabación de pantalla** para GameLingo.
-- La primera traducción puede pedir permiso para descargar el modelo inglés–español.
+The default language pair is English to Spanish. Both languages are persistent and configurable in **Settings**.
 
-## Compilar la aplicación
+## Requirements
+
+- macOS 15.2 or later.
+- Screen Recording permission for GameLingo.
+- Swift 6 and Xcode Command Line Tools to build from source. Full Xcode is not required.
+
+## Build from source
 
 ```bash
 chmod +x Scripts/build-app.sh Scripts/test.sh
@@ -46,25 +53,19 @@ chmod +x Scripts/build-app.sh Scripts/test.sh
 open dist/GameLingo.app
 ```
 
-El script genera `dist/GameLingo.app` y aplica una firma local ad hoc. Para distribuir la aplicación a otros Macs será necesario firmarla con Apple Developer ID y notarizarla.
+The build script creates `dist/GameLingo.app` and applies a local ad hoc signature. Public distribution outside GitHub source builds requires an Apple Developer ID signature and notarization.
 
-## Permisos
+## Screen Recording permission
 
-En el primer uso, macOS pedirá acceso para capturar la pantalla. Si no aparece o se rechazó:
+macOS requests screen capture access on first use. If the prompt does not appear or permission was denied:
 
-1. Abre **Ajustes del Sistema**.
-2. Entra en **Privacidad y seguridad → Grabación de pantalla**.
-3. Activa GameLingo.
-4. Cierra y vuelve a abrir la aplicación si macOS lo solicita.
+1. Open **System Settings**.
+2. Go to **Privacy & Security → Screen & System Audio Recording**.
+3. Enable GameLingo.
+4. Quit and reopen the app if macOS asks you to.
 
-## Alcance del MVP
+Some games use exclusive capture or protection mechanisms that prevent macOS from providing an image. Borderless windowed mode is usually the most compatible option.
 
-- Traducción fija de inglés a español.
-- Selección rectangular en uno o varios monitores.
-- OCR optimizado para precisión.
-- Ventana flotante sobre espacios y aplicaciones a pantalla completa.
-- Atajo principal configurable y persistente.
-- Repetición persistente de la última región.
-- Modo experimental de subtítulos automáticos con detección de cambios.
+## Project status
 
-Algunos juegos con captura exclusiva de pantalla o protecciones especiales pueden impedir que macOS entregue la imagen. En esos casos, usar el modo **ventana sin bordes** suele ser la opción más compatible.
+GameLingo is an early-stage project. Live subtitles are experimental, and the app is currently distributed as a source build.

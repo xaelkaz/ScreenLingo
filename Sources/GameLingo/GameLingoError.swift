@@ -6,44 +6,49 @@ enum GameLingoError: LocalizedError {
     case captureFailed(Error)
     case ocrFailed(Error)
     case noTextFound
+    case unsupportedOCRLanguage(String)
     case liveRegionMustFitSingleDisplay
     case liveSetupFailed
 
     var title: String {
         switch self {
         case .unsupportedSystem:
-            return "Esta versión de macOS no es compatible"
+            return "This version of macOS is not supported"
         case .invalidRegion:
-            return "La selección no es válida"
+            return "The selected region is not valid"
         case .captureFailed:
-            return "No se pudo capturar la pantalla"
+            return "The screen could not be captured"
         case .ocrFailed:
-            return "No se pudo leer el texto"
+            return "The text could not be read"
         case .noTextFound:
-            return "No encontré texto en inglés"
+            return "No text was found"
+        case .unsupportedOCRLanguage(let language):
+            return "OCR is not available for \(language)"
         case .liveRegionMustFitSingleDisplay:
-            return "La región automática cruza dos pantallas"
+            return "The live region crosses multiple displays"
         case .liveSetupFailed:
-            return "No se pudo iniciar el modo automático"
+            return "Live subtitles could not be started"
         }
     }
 
     var errorDescription: String? {
         switch self {
         case .unsupportedSystem:
-            return "GameLingo necesita macOS 15.2 o una versión posterior."
+            return "GameLingo requires macOS 15.2 or later."
         case .invalidRegion:
-            return "Selecciona un área de al menos 8 × 8 puntos."
+            return "Select an area of at least 8 × 8 points."
         case .captureFailed(let error):
-            return "Comprueba el permiso de Grabación de pantalla e inténtalo de nuevo. Detalle: \(error.localizedDescription)"
+            return "Check the Screen Recording permission and try again. Details: \(error.localizedDescription)"
         case .ocrFailed(let error):
-            return "Vision no pudo analizar la imagen. Detalle: \(error.localizedDescription)"
+            return "Vision could not analyze the image. Details: \(error.localizedDescription)"
         case .noTextFound:
-            return "Prueba seleccionando un área más ajustada al diálogo o aumentando el tamaño del texto del juego."
+            return "Try selecting a tighter area around the dialogue or increasing the game's text size."
+        case .unsupportedOCRLanguage(let language):
+            return "Vision cannot recognize \(language) on this Mac. Choose another source language in Settings."
         case .liveRegionMustFitSingleDisplay:
-            return "Selecciona una zona de diálogo que esté completamente dentro de un solo monitor."
+            return "Select a dialogue area that is fully contained within a single display."
         case .liveSetupFailed:
-            return "GameLingo no encontró la pantalla seleccionada. Intenta seleccionar la región nuevamente."
+            return "GameLingo could not find the selected display. Select the region again."
         }
     }
 }

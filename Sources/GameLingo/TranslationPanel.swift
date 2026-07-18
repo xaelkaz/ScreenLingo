@@ -31,7 +31,7 @@ final class TranslationResultModel: ObservableObject {
     private static func message(for error: Error) -> String {
         let description = error.localizedDescription
         if description.isEmpty {
-            return "No se pudo completar la traducción. Comprueba que el modelo de inglés a español esté disponible."
+            return "The translation could not be completed. Check that the required language models are available."
         }
         return description
     }
@@ -39,19 +39,28 @@ final class TranslationResultModel: ObservableObject {
 
 struct TranslationCardView: View {
     @ObservedObject var model: TranslationResultModel
+    let sourceLanguage: TranslationLanguage
+    let targetLanguage: TranslationLanguage
     let showsOriginalText: Bool
     let isLive: Bool
+    let shortcutDisplayName: String
     let onClose: () -> Void
 
     init(
         model: TranslationResultModel,
+        sourceLanguage: TranslationLanguage,
+        targetLanguage: TranslationLanguage,
         showsOriginalText: Bool,
         isLive: Bool,
+        shortcutDisplayName: String,
         onClose: @escaping () -> Void
     ) {
         self.model = model
+        self.sourceLanguage = sourceLanguage
+        self.targetLanguage = targetLanguage
         self.showsOriginalText = showsOriginalText
         self.isLive = isLive
+        self.shortcutDisplayName = shortcutDisplayName
         self.onClose = onClose
     }
 
@@ -63,21 +72,31 @@ struct TranslationCardView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     if showsOriginalText {
-                        textBlock(label: "INGLÉS", text: model.sourceText, color: .secondary)
+                        textBlock(
+                            label: sourceLanguage.uppercaseDisplayName,
+                            text: model.sourceText,
+                            color: .secondary,
+                            isTarget: false
+                        )
                     }
 
                     switch model.state {
                     case .translating:
                         HStack(spacing: 10) {
                             ProgressView().controlSize(.small)
-                            Text("Traduciendo al español…")
+                            Text("Translating to \(targetLanguage.displayName)…")
                                 .foregroundStyle(.secondary)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.vertical, 8)
 
                     case .translated(let text):
-                        textBlock(label: "ESPAÑOL", text: text, color: .primary)
+                        textBlock(
+                            label: targetLanguage.uppercaseDisplayName,
+                            text: text,
+                            color: .primary,
+                            isTarget: true
+                        )
                         actionRow(for: text)
 
                     case .failed(let message):
@@ -96,8 +115,8 @@ struct TranslationCardView: View {
         }
         .translationTask(
             TranslationSession.Configuration(
-                source: Locale.Language(identifier: "en"),
-                target: Locale.Language(identifier: "es")
+                source: sourceLanguage.localeLanguage,
+                target: targetLanguage.localeLanguage
             )
         ) { session in
             await model.translate(using: session)
@@ -111,7 +130,7 @@ struct TranslationCardView: View {
             Text("GameLingo")
                 .font(.headline)
             if isLive {
-                Text("EN VIVO")
+                Text("LIVE")
                     .font(.caption2.weight(.bold))
                     .foregroundStyle(.black)
                     .padding(.horizontal, 7)
@@ -119,7 +138,7 @@ struct TranslationCardView: View {
                     .background(.yellow, in: Capsule())
             }
             Spacer()
-            Text("⌥⌘T")
+            Text(shortcutDisplayName)
                 .font(.caption.monospaced())
                 .foregroundStyle(.secondary)
             Button(action: onClose) {
@@ -129,20 +148,25 @@ struct TranslationCardView: View {
             }
             .buttonStyle(.plain)
             .keyboardShortcut(.cancelAction)
-            .help("Cerrar")
+            .help("Close")
         }
         .padding(.horizontal, 16)
         .frame(height: 48)
     }
 
-    private func textBlock(label: String, text: String, color: Color) -> some View {
+    private func textBlock(
+        label: String,
+        text: String,
+        color: Color,
+        isTarget: Bool
+    ) -> some View {
         VStack(alignment: .leading, spacing: 7) {
             Text(label)
                 .font(.caption2.weight(.bold))
                 .tracking(0.7)
                 .foregroundStyle(.secondary)
             Text(text)
-                .font(.system(size: label == "ESPAÑOL" ? 17 : 14, weight: label == "ESPAÑOL" ? .medium : .regular))
+                .font(.system(size: isTarget ? 17 : 14, weight: isTarget ? .medium : .regular))
                 .foregroundStyle(color)
                 .textSelection(.enabled)
                 .fixedSize(horizontal: false, vertical: true)
@@ -161,7 +185,7 @@ struct TranslationCardView: View {
                     model.copied = false
                 }
             } label: {
-                Label(model.copied ? "Copiado" : "Copiar", systemImage: model.copied ? "checkmark" : "doc.on.doc")
+                Label(model.copied ? "Copied" : "Copy", systemImage: model.copied ? "checkmark" : "doc.on.doc")
             }
             .buttonStyle(.bordered)
         }
@@ -169,13 +193,13 @@ struct TranslationCardView: View {
 
     private func failureView(_ message: String) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Label("No se pudo traducir", systemImage: "exclamationmark.triangle.fill")
+            Label("Translation failed", systemImage: "exclamationmark.triangle.fill")
                 .foregroundStyle(.orange)
                 .font(.headline)
             Text(message)
                 .font(.callout)
                 .foregroundStyle(.secondary)
-            Text("La primera traducción puede solicitar la descarga del idioma español.")
+            Text("The first translation may ask to download the required language models.")
                 .font(.caption)
                 .foregroundStyle(.tertiary)
         }
@@ -190,9 +214,12 @@ final class TranslationPanelController {
 
     func show(
         sourceText: String,
+        sourceLanguage: TranslationLanguage,
+        targetLanguage: TranslationLanguage,
         near region: CGRect,
         showsOriginalText: Bool = true,
-        isLive: Bool = false
+        isLive: Bool = false,
+        shortcutDisplayName: String
     ) {
         close()
 
@@ -213,8 +240,11 @@ final class TranslationPanelController {
         panel.contentView = NSHostingView(
             rootView: TranslationCardView(
                 model: model,
+                sourceLanguage: sourceLanguage,
+                targetLanguage: targetLanguage,
                 showsOriginalText: showsOriginalText,
-                isLive: isLive
+                isLive: isLive,
+                shortcutDisplayName: shortcutDisplayName
             ) { [weak self] in
                 self?.close()
             }

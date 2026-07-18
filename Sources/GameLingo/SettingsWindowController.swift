@@ -6,21 +6,27 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
     private let preferences: GameLingoPreferences
     private let onShortcutChange: (HotKeyShortcut) -> Bool
     private let onRecordingStateChange: (Bool) -> Void
+    private let onLanguageChange: () -> Void
     private var window: NSWindow?
+    private var sourceLanguagePopup: NSPopUpButton?
+    private var targetLanguagePopup: NSPopUpButton?
     private var shortcutButton: NSButton?
     private var intervalPopup: NSPopUpButton?
     private var originalTextCheckbox: NSButton?
     private var keyMonitor: Any?
+    private var languageTask: Task<Void, Never>?
     private var isRecordingShortcut = false
 
     init(
         preferences: GameLingoPreferences,
         onShortcutChange: @escaping (HotKeyShortcut) -> Bool,
-        onRecordingStateChange: @escaping (Bool) -> Void
+        onRecordingStateChange: @escaping (Bool) -> Void,
+        onLanguageChange: @escaping () -> Void
     ) {
         self.preferences = preferences
         self.onShortcutChange = onShortcutChange
         self.onRecordingStateChange = onRecordingStateChange
+        self.onLanguageChange = onLanguageChange
     }
 
     func show() {
@@ -28,6 +34,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
             buildWindow()
         }
         refreshControls()
+        loadLanguages()
         NSApp.activate(ignoringOtherApps: true)
         window?.center()
         window?.makeKeyAndOrderFront(nil)
@@ -35,23 +42,24 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
 
     func close() {
         stopRecordingShortcut()
+        languageTask?.cancel()
         window?.orderOut(nil)
     }
 
     func windowWillClose(_ notification: Notification) {
         stopRecordingShortcut()
+        languageTask?.cancel()
     }
 
     private func buildWindow() {
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 470, height: 290),
+            contentRect: NSRect(x: 0, y: 0, width: 500, height: 430),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
         )
-        window.title = "Ajustes de GameLingo"
+        window.title = "GameLingo Settings"
         window.isReleasedWhenClosed = false
-        window.sharingType = .none
         window.delegate = self
         self.window = window
 
@@ -62,15 +70,31 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         effect.translatesAutoresizingMaskIntoConstraints = false
         window.contentView = effect
 
-        let title = label("Preferencias", size: 22, weight: .bold)
+        let title = label("Settings", size: 22, weight: .bold)
         let subtitle = label(
-            "Personaliza cómo activas GameLingo y la frecuencia del modo automático.",
+            "Choose your languages and customize how GameLingo works.",
             size: 13,
             color: .secondaryLabelColor
         )
         subtitle.maximumNumberOfLines = 2
 
-        let shortcutLabel = label("Atajo para traducir región", size: 13, weight: .medium)
+        let sourceLanguageLabel = label("Translate from", size: 13, weight: .medium)
+        let sourceLanguagePopup = languagePopup(action: #selector(sourceLanguageChanged))
+        self.sourceLanguagePopup = sourceLanguagePopup
+        let sourceLanguageRow = row(label: sourceLanguageLabel, control: sourceLanguagePopup)
+
+        let targetLanguageLabel = label("Translate to", size: 13, weight: .medium)
+        let targetLanguagePopup = languagePopup(action: #selector(targetLanguageChanged))
+        self.targetLanguagePopup = targetLanguagePopup
+        let targetLanguageRow = row(label: targetLanguageLabel, control: targetLanguagePopup)
+
+        let languageHint = label(
+            "Available languages are provided by Apple Translation and Vision on this Mac.",
+            size: 11,
+            color: .tertiaryLabelColor
+        )
+
+        let shortcutLabel = label("Capture shortcut", size: 13, weight: .medium)
         let shortcutButton = NSButton(title: "", target: self, action: #selector(beginRecordingShortcut))
         shortcutButton.bezelStyle = .rounded
         shortcutButton.font = .monospacedSystemFont(ofSize: 14, weight: .semibold)
@@ -80,14 +104,14 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         let shortcutRow = row(label: shortcutLabel, control: shortcutButton)
 
         let hint = label(
-            "Haz clic en el botón y presiona una combinación con ⌘, ⌥ o ⌃. Esc cancela.",
+            "Click the button and press a combination with ⌘, ⌥, or ⌃. Esc cancels.",
             size: 11,
             color: .tertiaryLabelColor
         )
 
-        let intervalLabel = label("Frecuencia de subtítulos", size: 13, weight: .medium)
+        let intervalLabel = label("Live subtitle interval", size: 13, weight: .medium)
         let intervalPopup = NSPopUpButton()
-        [("Cada 0.5 s", 0.5), ("Cada 0.8 s", 0.8), ("Cada 1.0 s", 1.0), ("Cada 1.5 s", 1.5), ("Cada 2.0 s", 2.0)].forEach {
+        [("Every 0.5 s", 0.5), ("Every 0.8 s", 0.8), ("Every 1.0 s", 1.0), ("Every 1.5 s", 1.5), ("Every 2.0 s", 2.0)].forEach {
             intervalPopup.addItem(withTitle: $0.0)
             intervalPopup.lastItem?.representedObject = $0.1
         }
@@ -97,26 +121,29 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         let intervalRow = row(label: intervalLabel, control: intervalPopup)
 
         let originalTextCheckbox = NSButton(
-            checkboxWithTitle: "Mostrar también el texto original en inglés",
+            checkboxWithTitle: "Also show the original text",
             target: self,
             action: #selector(originalTextChanged)
         )
         self.originalTextCheckbox = originalTextCheckbox
 
-        let resetButton = NSButton(title: "Restablecer atajo", target: self, action: #selector(resetShortcut))
+        let resetButton = NSButton(title: "Reset shortcut", target: self, action: #selector(resetShortcut))
         resetButton.bezelStyle = .inline
         resetButton.controlSize = .small
 
         let stack = NSStackView(views: [
-            title, subtitle, separator(), shortcutRow, hint, intervalRow, originalTextCheckbox, resetButton
+            title, subtitle, separator(), sourceLanguageRow, targetLanguageRow, languageHint,
+            separator(), shortcutRow, hint, intervalRow, originalTextCheckbox, resetButton
         ])
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 12
         stack.setCustomSpacing(4, after: title)
-        stack.setCustomSpacing(16, after: subtitle)
+        stack.setCustomSpacing(14, after: subtitle)
+        stack.setCustomSpacing(5, after: targetLanguageRow)
+        stack.setCustomSpacing(14, after: languageHint)
         stack.setCustomSpacing(5, after: shortcutRow)
-        stack.setCustomSpacing(16, after: hint)
+        stack.setCustomSpacing(12, after: hint)
         stack.translatesAutoresizingMaskIntoConstraints = false
         effect.addSubview(stack)
 
@@ -125,6 +152,8 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
             stack.trailingAnchor.constraint(equalTo: effect.trailingAnchor, constant: -28),
             stack.topAnchor.constraint(equalTo: effect.topAnchor, constant: 24),
             stack.bottomAnchor.constraint(lessThanOrEqualTo: effect.bottomAnchor, constant: -20),
+            sourceLanguageRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            targetLanguageRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
             shortcutRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
             intervalRow.widthAnchor.constraint(equalTo: stack.widthAnchor)
         ])
@@ -141,11 +170,80 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         originalTextCheckbox?.state = preferences.showsOriginalText ? .on : .off
     }
 
+    private func loadLanguages() {
+        languageTask?.cancel()
+        setLanguagePopupsLoading()
+
+        languageTask = Task { [weak self] in
+            let catalog = await TranslationLanguageCatalog.load()
+            guard !Task.isCancelled else { return }
+            self?.populateLanguagePopups(with: catalog)
+        }
+    }
+
+    private func setLanguagePopupsLoading() {
+        [sourceLanguagePopup, targetLanguagePopup].forEach { popup in
+            popup?.removeAllItems()
+            popup?.addItem(withTitle: "Loading languages…")
+            popup?.isEnabled = false
+        }
+    }
+
+    private func populateLanguagePopups(with catalog: TranslationLanguageCatalog) {
+        populate(
+            sourceLanguagePopup,
+            languages: catalog.sourceLanguages,
+            selectedIdentifier: preferences.sourceLanguageIdentifier
+        )
+        populate(
+            targetLanguagePopup,
+            languages: catalog.targetLanguages,
+            selectedIdentifier: preferences.targetLanguageIdentifier
+        )
+    }
+
+    private func populate(
+        _ popup: NSPopUpButton?,
+        languages: [TranslationLanguage],
+        selectedIdentifier: String
+    ) {
+        guard let popup else { return }
+        popup.removeAllItems()
+
+        var options = languages
+        if !options.contains(where: { $0.identifier == selectedIdentifier }) {
+            options.append(TranslationLanguage(identifier: selectedIdentifier))
+            options.sort {
+                $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending
+            }
+        }
+
+        options.forEach { language in
+            popup.addItem(withTitle: language.displayName)
+            popup.lastItem?.representedObject = language.identifier
+        }
+        if let selectedItem = popup.itemArray.first(where: {
+            ($0.representedObject as? String) == selectedIdentifier
+        }) {
+            popup.select(selectedItem)
+        }
+        popup.isEnabled = !options.isEmpty
+    }
+
+    private func languagePopup(action: Selector) -> NSPopUpButton {
+        let popup = NSPopUpButton()
+        popup.target = self
+        popup.action = action
+        popup.translatesAutoresizingMaskIntoConstraints = false
+        popup.widthAnchor.constraint(greaterThanOrEqualToConstant: 210).isActive = true
+        return popup
+    }
+
     @objc private func beginRecordingShortcut() {
         guard !isRecordingShortcut else { return }
         isRecordingShortcut = true
         onRecordingStateChange(true)
-        shortcutButton?.title = "Presiona el nuevo atajo…"
+        shortcutButton?.title = "Press the new shortcut…"
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             self?.handleShortcutEvent(event) ?? event
         }
@@ -160,7 +258,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
 
         guard let shortcut = HotKeyShortcut(event: event), shortcut.isSuitableGlobalShortcut else {
             NSSound.beep()
-            shortcutButton?.title = "Incluye ⌘, ⌥ o ⌃"
+            shortcutButton?.title = "Include ⌘, ⌥, or ⌃"
             return nil
         }
 
@@ -171,8 +269,8 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
             refreshControls()
             let alert = NSAlert()
             alert.alertStyle = .warning
-            alert.messageText = "Ese atajo no está disponible"
-            alert.informativeText = "Otra aplicación ya puede estar usando \(shortcut.displayName). Prueba una combinación diferente."
+            alert.messageText = "That shortcut is not available"
+            alert.informativeText = "Another app may already be using \(shortcut.displayName). Try a different combination."
             alert.runModal()
         }
         return nil
@@ -193,6 +291,44 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
     @objc private func intervalChanged() {
         guard let interval = intervalPopup?.selectedItem?.representedObject as? Double else { return }
         preferences.liveInterval = interval
+    }
+
+    @objc private func sourceLanguageChanged() {
+        guard let identifier = sourceLanguagePopup?.selectedItem?.representedObject as? String else {
+            return
+        }
+        preferences.sourceLanguageIdentifier = identifier
+        avoidIdenticalLanguagePair(changedSource: true)
+        onLanguageChange()
+    }
+
+    @objc private func targetLanguageChanged() {
+        guard let identifier = targetLanguagePopup?.selectedItem?.representedObject as? String else {
+            return
+        }
+        preferences.targetLanguageIdentifier = identifier
+        avoidIdenticalLanguagePair(changedSource: false)
+        onLanguageChange()
+    }
+
+    private func avoidIdenticalLanguagePair(changedSource: Bool) {
+        guard preferences.sourceLanguageIdentifier == preferences.targetLanguageIdentifier else {
+            return
+        }
+
+        let popup = changedSource ? targetLanguagePopup : sourceLanguagePopup
+        let fallback = popup?.itemArray.first(where: {
+            ($0.representedObject as? String) != preferences.sourceLanguageIdentifier
+        })
+        guard let identifier = fallback?.representedObject as? String else { return }
+
+        if changedSource {
+            preferences.targetLanguageIdentifier = identifier
+            targetLanguagePopup?.select(fallback)
+        } else {
+            preferences.sourceLanguageIdentifier = identifier
+            sourceLanguagePopup?.select(fallback)
+        }
     }
 
     @objc private func originalTextChanged() {

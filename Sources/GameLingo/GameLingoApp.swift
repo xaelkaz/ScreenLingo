@@ -7,7 +7,8 @@ enum GameLingoApp {
     @MainActor
     static func main() {
         let application = NSApplication.shared
-        application.setActivationPolicy(.accessory)
+        let opensSettingsForQA = CommandLine.arguments.contains("--settings")
+        application.setActivationPolicy(opensSettingsForQA ? .regular : .accessory)
         application.delegate = delegate
         application.run()
     }

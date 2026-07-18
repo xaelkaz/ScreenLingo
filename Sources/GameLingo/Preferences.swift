@@ -70,7 +70,7 @@ struct HotKeyShortcut: Equatable {
         }
 
         switch keyCode {
-        case kVK_Space: return "Espacio"
+        case kVK_Space: return "Space"
         case kVK_Return: return "↩"
         case kVK_Tab: return "⇥"
         case kVK_LeftArrow: return "←"
@@ -103,6 +103,8 @@ final class GameLingoPreferences {
         static let liveInterval = "live.interval"
         static let showsOriginalText = "overlay.showsOriginalText"
         static let lastRegion = "capture.lastRegion"
+        static let sourceLanguage = "translation.sourceLanguage"
+        static let targetLanguage = "translation.targetLanguage"
     }
 
     private let defaults: UserDefaults
@@ -147,6 +149,16 @@ final class GameLingoPreferences {
             return defaults.bool(forKey: Key.showsOriginalText)
         }
         set { defaults.set(newValue, forKey: Key.showsOriginalText) }
+    }
+
+    var sourceLanguageIdentifier: String {
+        get { defaults.string(forKey: Key.sourceLanguage) ?? "en" }
+        set { defaults.set(newValue, forKey: Key.sourceLanguage) }
+    }
+
+    var targetLanguageIdentifier: String {
+        get { defaults.string(forKey: Key.targetLanguage) ?? "es" }
+        set { defaults.set(newValue, forKey: Key.targetLanguage) }
     }
 
     var lastRegion: CGRect? {

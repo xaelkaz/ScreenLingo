@@ -47,6 +47,9 @@ final class AppController: NSObject {
             },
             onRecordingStateChange: { [weak self] isRecording in
                 self?.setShortcutsSuspended(isRecording)
+            },
+            onLanguageChange: { [weak self] in
+                self?.languageSettingsChanged()
             }
         )
     }
@@ -66,7 +69,7 @@ final class AppController: NSObject {
     private func configureStatusItem() {
         if let button = statusItem.button {
             button.image = NSImage(systemSymbolName: "character.bubble", accessibilityDescription: "GameLingo")
-            button.toolTip = "GameLingo — traducir texto de la pantalla"
+            button.toolTip = "GameLingo — translate text on screen"
         }
 
         let menu = NSMenu()
@@ -77,7 +80,7 @@ final class AppController: NSObject {
         menu.addItem(translateItem)
 
         repeatItem = NSMenuItem(
-            title: "Repetir última región",
+            title: "Repeat Last Region",
             action: #selector(repeatLastRegionFromMenu),
             keyEquivalent: "r"
         )
@@ -87,7 +90,7 @@ final class AppController: NSObject {
         menu.addItem(repeatItem)
 
         liveItem = NSMenuItem(
-            title: "Iniciar subtítulos automáticos",
+            title: "Start Live Subtitles",
             action: #selector(toggleLiveModeFromMenu),
             keyEquivalent: "s"
         )
@@ -97,18 +100,18 @@ final class AppController: NSObject {
 
         menu.addItem(.separator())
 
-        let settingsItem = NSMenuItem(title: "Ajustes…", action: #selector(showSettings), keyEquivalent: ",")
+        let settingsItem = NSMenuItem(title: "Settings…", action: #selector(showSettings), keyEquivalent: ",")
         settingsItem.keyEquivalentModifierMask = [.command]
         settingsItem.target = self
         menu.addItem(settingsItem)
 
-        let aboutItem = NSMenuItem(title: "Acerca de GameLingo", action: #selector(showAbout), keyEquivalent: "")
+        let aboutItem = NSMenuItem(title: "About GameLingo", action: #selector(showAbout), keyEquivalent: "")
         aboutItem.target = self
         menu.addItem(aboutItem)
 
         menu.addItem(.separator())
 
-        let quitItem = NSMenuItem(title: "Salir de GameLingo", action: #selector(quit), keyEquivalent: "q")
+        let quitItem = NSMenuItem(title: "Quit GameLingo", action: #selector(quit), keyEquivalent: "q")
         quitItem.target = self
         menu.addItem(quitItem)
 
@@ -129,8 +132,8 @@ final class AppController: NSObject {
             captureHotKey = nil
             if presentError {
                 showError(
-                    title: "No se pudo registrar el atajo",
-                    message: "\(shortcut.displayName) ya puede estar siendo utilizado por otra aplicación. Puedes cambiarlo desde Ajustes."
+                    title: "The shortcut could not be registered",
+                    message: "\(shortcut.displayName) may already be used by another app. You can change it in Settings."
                 )
             }
         }
@@ -201,7 +204,7 @@ final class AppController: NSObject {
     }
 
     private func updateCaptureMenuTitle() {
-        translateItem?.title = "Traducir región (\(preferences.captureShortcut.displayName))"
+        translateItem?.title = "Translate Region (\(preferences.captureShortcut.displayName))"
     }
 
     @objc private func translateRegionFromMenu() {
@@ -268,8 +271,8 @@ final class AppController: NSObject {
             preferences.lastRegion = nil
             repeatItem.isEnabled = false
             showError(
-                title: "Todavía no hay una región guardada",
-                message: "Traduce una región una vez y luego podrás repetirla con ⌥⌘R."
+                title: "There is no saved region yet",
+                message: "Translate a region once, then repeat it with ⌥⌘R."
             )
             return
         }
@@ -296,6 +299,8 @@ final class AppController: NSObject {
 
     private func processSingleTranslation(region: CGRect) {
         let requestID = UUID()
+        let sourceLanguage = TranslationLanguage(identifier: preferences.sourceLanguageIdentifier)
+        let targetLanguage = TranslationLanguage(identifier: preferences.targetLanguageIdentifier)
         processingID = requestID
         setBusy(true)
 
@@ -309,21 +314,27 @@ final class AppController: NSObject {
                 let image = try await captureService.capture(appKitRegion: region)
                 try Task.checkCancellation()
 
-                let recognizedText = try await textRecognizer.recognizeText(in: image)
+                let recognizedText = try await textRecognizer.recognizeText(
+                    in: image,
+                    sourceLanguageIdentifier: sourceLanguage.identifier
+                )
                 try Task.checkCancellation()
 
                 panelController.show(
                     sourceText: recognizedText,
+                    sourceLanguage: sourceLanguage,
+                    targetLanguage: targetLanguage,
                     near: region,
                     showsOriginalText: preferences.showsOriginalText,
-                    isLive: false
+                    isLive: false,
+                    shortcutDisplayName: preferences.captureShortcut.displayName
                 )
             } catch is CancellationError {
                 // A new operation replaced this request.
             } catch let error as GameLingoError {
                 showError(title: error.title, message: error.localizedDescription)
             } catch {
-                showError(title: "No se pudo traducir esta región", message: error.localizedDescription)
+                showError(title: "This region could not be translated", message: error.localizedDescription)
             }
 
             if processingID == requestID {
@@ -343,6 +354,8 @@ final class AppController: NSObject {
 
     private func startLiveMode(region: CGRect) {
         let sessionID = UUID()
+        let sourceLanguage = TranslationLanguage(identifier: preferences.sourceLanguageIdentifier)
+        let targetLanguage = TranslationLanguage(identifier: preferences.targetLanguageIdentifier)
         liveSessionID = sessionID
         setLiveUI(active: true)
 
@@ -367,15 +380,21 @@ final class AppController: NSObject {
                     }
 
                     do {
-                        let recognizedText = try await textRecognizer.recognizeText(in: image)
+                        let recognizedText = try await textRecognizer.recognizeText(
+                            in: image,
+                            sourceLanguageIdentifier: sourceLanguage.identifier
+                        )
                         let normalized = LiveTextNormalizer.normalize(recognizedText)
                         if !normalized.isEmpty, normalized != lastNormalizedText {
                             lastNormalizedText = normalized
                             panelController.show(
                                 sourceText: recognizedText,
+                                sourceLanguage: sourceLanguage,
+                                targetLanguage: targetLanguage,
                                 near: region,
                                 showsOriginalText: preferences.showsOriginalText,
-                                isLive: true
+                                isLive: true,
+                                shortcutDisplayName: preferences.captureShortcut.displayName
                             )
                         }
                     } catch GameLingoError.noTextFound {
@@ -390,7 +409,7 @@ final class AppController: NSObject {
             } catch let error as GameLingoError {
                 showError(title: error.title, message: error.localizedDescription)
             } catch {
-                showError(title: "Se detuvieron los subtítulos", message: error.localizedDescription)
+                showError(title: "Live subtitles stopped", message: error.localizedDescription)
             }
 
             if liveSessionID == sessionID {
@@ -420,28 +439,28 @@ final class AppController: NSObject {
         guard liveTask == nil else { return }
         statusItem.button?.image = NSImage(
             systemSymbolName: busy ? "ellipsis.bubble" : "character.bubble",
-            accessibilityDescription: busy ? "Procesando" : "GameLingo"
+            accessibilityDescription: busy ? "Processing" : "GameLingo"
         )
     }
 
     private func setLiveUI(active: Bool) {
-        liveItem?.title = active ? "Detener subtítulos automáticos" : "Iniciar subtítulos automáticos"
+        liveItem?.title = active ? "Stop Live Subtitles" : "Start Live Subtitles"
         statusItem.button?.image = NSImage(
             systemSymbolName: active ? "captions.bubble.fill" : "character.bubble",
-            accessibilityDescription: active ? "Subtítulos activos" : "GameLingo"
+            accessibilityDescription: active ? "Live subtitles active" : "GameLingo"
         )
         statusItem.button?.toolTip = active
-            ? "GameLingo — subtítulos automáticos activos"
-            : "GameLingo — traducir texto de la pantalla"
+            ? "GameLingo — live subtitles active"
+            : "GameLingo — translate text on screen"
     }
 
     private func showCapturePermissionAlert() {
         let alert = NSAlert()
         alert.alertStyle = .informational
-        alert.messageText = "GameLingo necesita ver la pantalla"
-        alert.informativeText = "Autoriza GameLingo en Ajustes del Sistema → Privacidad y seguridad → Grabación de pantalla. Es posible que debas cerrar y abrir la aplicación una vez."
-        alert.addButton(withTitle: "Abrir ajustes")
-        alert.addButton(withTitle: "Ahora no")
+        alert.messageText = "GameLingo needs access to your screen"
+        alert.informativeText = "Allow GameLingo in System Settings → Privacy & Security → Screen & System Audio Recording. You may need to quit and reopen the app once."
+        alert.addButton(withTitle: "Open Settings")
+        alert.addButton(withTitle: "Not Now")
 
         NSApp.activate(ignoringOtherApps: true)
         if alert.runModal() == .alertFirstButtonReturn,
@@ -455,7 +474,7 @@ final class AppController: NSObject {
         alert.alertStyle = .warning
         alert.messageText = title
         alert.informativeText = message
-        alert.addButton(withTitle: "Aceptar")
+        alert.addButton(withTitle: "OK")
         NSApp.activate(ignoringOtherApps: true)
         alert.runModal()
     }
@@ -464,11 +483,18 @@ final class AppController: NSObject {
         settingsController?.show()
     }
 
+    private func languageSettingsChanged() {
+        cancelSingleProcessing()
+        stopLiveMode(closePanel: true)
+    }
+
     @objc private func showAbout() {
         let alert = NSAlert()
         alert.messageText = "GameLingo"
-        alert.informativeText = "Traduce texto en inglés y crea subtítulos automáticos para tus juegos.\n\nTraducir: \(preferences.captureShortcut.displayName)\nRepetir región: ⌥⌘R\nSubtítulos automáticos: ⌥⌘S\n\nTodo el procesamiento se realiza en tu Mac."
-        alert.addButton(withTitle: "Listo")
+        let source = TranslationLanguage(identifier: preferences.sourceLanguageIdentifier).displayName
+        let target = TranslationLanguage(identifier: preferences.targetLanguageIdentifier).displayName
+        alert.informativeText = "Translate game text from \(source) to \(target) and create live subtitles.\n\nTranslate: \(preferences.captureShortcut.displayName)\nRepeat region: ⌥⌘R\nLive subtitles: ⌥⌘S\n\nAll processing happens on your Mac."
+        alert.addButton(withTitle: "Done")
         NSApp.activate(ignoringOtherApps: true)
         alert.runModal()
     }
