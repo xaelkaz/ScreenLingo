@@ -7,6 +7,8 @@ Screen capture, text recognition, and translation all run locally using Apple's 
 ## Features
 
 - Configurable source and target languages based on the languages supported by Apple on your Mac.
+- Automatic source-language detection.
+- One-click language swapping when both languages support OCR.
 - Region capture with a customizable global shortcut (`⌥⌘T` by default).
 - Persistent **Repeat Last Region** shortcut (`⌥⌘R`).
 - Experimental **Live Subtitles** mode (`⌥⌘S`) with dialogue-change detection.
@@ -17,7 +19,7 @@ Screen capture, text recognition, and translation all run locally using Apple's 
 ## How to use
 
 1. Open `ScreenLingo.app`. A translation icon appears in the menu bar.
-2. Open **Settings** and choose the source and target languages.
+2. Open **Settings** and choose automatic detection or a specific source language, then choose the target language.
 3. Press `⌥⌘T` from any app.
 4. Drag over the text you want to translate.
 5. ScreenLingo shows the translation in a floating card. Press `Esc` to close it.
@@ -36,7 +38,7 @@ ScreenLingo excludes its own windows from continuous capture so the translation 
 
 ScreenLingo loads the language list directly from Apple Translation on each Mac and uses a built-in fallback list if the system service is temporarily unavailable. Source languages are further limited to those that Apple Vision can recognize with OCR. The first translation for a new pair may ask macOS to download the required language models.
 
-The default language pair is English to Spanish. Both languages are persistent and configurable in **Settings**.
+The default source is automatic detection and the default target is Spanish. Both selections are persistent and configurable in **Settings**. Language swapping is available when the current target can also be recognized by Vision OCR.
 
 ## Requirements
 

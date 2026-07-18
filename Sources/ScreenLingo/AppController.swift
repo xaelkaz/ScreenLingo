@@ -299,7 +299,7 @@ final class AppController: NSObject {
 
     private func processSingleTranslation(region: CGRect) {
         let requestID = UUID()
-        let sourceLanguage = TranslationLanguage(identifier: preferences.sourceLanguageIdentifier)
+        let sourceLanguage = configuredSourceLanguage()
         let targetLanguage = TranslationLanguage(identifier: preferences.targetLanguageIdentifier)
         processingID = requestID
         setBusy(true)
@@ -316,7 +316,7 @@ final class AppController: NSObject {
 
                 let recognizedText = try await textRecognizer.recognizeText(
                     in: image,
-                    sourceLanguageIdentifier: sourceLanguage.identifier
+                    sourceLanguageIdentifier: sourceLanguage?.identifier
                 )
                 try Task.checkCancellation()
 
@@ -354,7 +354,7 @@ final class AppController: NSObject {
 
     private func startLiveMode(region: CGRect) {
         let sessionID = UUID()
-        let sourceLanguage = TranslationLanguage(identifier: preferences.sourceLanguageIdentifier)
+        let sourceLanguage = configuredSourceLanguage()
         let targetLanguage = TranslationLanguage(identifier: preferences.targetLanguageIdentifier)
         liveSessionID = sessionID
         setLiveUI(active: true)
@@ -382,7 +382,7 @@ final class AppController: NSObject {
                     do {
                         let recognizedText = try await textRecognizer.recognizeText(
                             in: image,
-                            sourceLanguageIdentifier: sourceLanguage.identifier
+                            sourceLanguageIdentifier: sourceLanguage?.identifier
                         )
                         let normalized = LiveTextNormalizer.normalize(recognizedText)
                         if !normalized.isEmpty, normalized != lastNormalizedText {
@@ -488,12 +488,18 @@ final class AppController: NSObject {
         stopLiveMode(closePanel: true)
     }
 
+    private func configuredSourceLanguage() -> TranslationLanguage? {
+        let identifier = preferences.sourceLanguageIdentifier
+        guard identifier != LanguagePairPolicy.automaticSourceIdentifier else { return nil }
+        return TranslationLanguage(identifier: identifier)
+    }
+
     @objc private func showAbout() {
         let alert = NSAlert()
         alert.messageText = "ScreenLingo"
-        let source = TranslationLanguage(identifier: preferences.sourceLanguageIdentifier).displayName
+        let source = configuredSourceLanguage()?.displayName ?? "Automatic detection"
         let target = TranslationLanguage(identifier: preferences.targetLanguageIdentifier).displayName
-        alert.informativeText = "Translate game text from \(source) to \(target) and create live subtitles.\n\nTranslate: \(preferences.captureShortcut.displayName)\nRepeat region: ⌥⌘R\nLive subtitles: ⌥⌘S\n\nAll processing happens on your Mac."
+        alert.informativeText = "Translate on-screen text from \(source) to \(target) and create live subtitles.\n\nTranslate: \(preferences.captureShortcut.displayName)\nRepeat region: ⌥⌘R\nLive subtitles: ⌥⌘S\n\nAll processing happens on your Mac."
         alert.addButton(withTitle: "Done")
         NSApp.activate(ignoringOtherApps: true)
         alert.runModal()

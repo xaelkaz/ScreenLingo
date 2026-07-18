@@ -13,6 +13,7 @@ final class TranslationResultModel: ObservableObject {
     let sourceText: String
     @Published var state: State = .translating
     @Published var copied = false
+    @Published var detectedSourceLanguage: TranslationLanguage?
 
     init(sourceText: String) {
         self.sourceText = sourceText
@@ -22,6 +23,14 @@ final class TranslationResultModel: ObservableObject {
         state = .translating
         do {
             let response = try await session.translate(sourceText)
+            let detectedLanguage = TranslationLanguage(localeLanguage: response.sourceLanguage)
+            guard !TranslationLanguageCatalog.isExcluded(
+                identifier: detectedLanguage.identifier
+            ) else {
+                state = .failed("The detected source language is not supported by ScreenLingo.")
+                return
+            }
+            detectedSourceLanguage = detectedLanguage
             state = .translated(response.targetText)
         } catch {
             state = .failed(Self.message(for: error))
@@ -39,7 +48,7 @@ final class TranslationResultModel: ObservableObject {
 
 struct TranslationCardView: View {
     @ObservedObject var model: TranslationResultModel
-    let sourceLanguage: TranslationLanguage
+    let sourceLanguage: TranslationLanguage?
     let targetLanguage: TranslationLanguage
     let showsOriginalText: Bool
     let isLive: Bool
@@ -48,7 +57,7 @@ struct TranslationCardView: View {
 
     init(
         model: TranslationResultModel,
-        sourceLanguage: TranslationLanguage,
+        sourceLanguage: TranslationLanguage?,
         targetLanguage: TranslationLanguage,
         showsOriginalText: Bool,
         isLive: Bool,
@@ -73,7 +82,7 @@ struct TranslationCardView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     if showsOriginalText {
                         textBlock(
-                            label: sourceLanguage.uppercaseDisplayName,
+                            label: sourceLanguageLabel,
                             text: model.sourceText,
                             color: .secondary,
                             isTarget: false
@@ -115,12 +124,22 @@ struct TranslationCardView: View {
         }
         .translationTask(
             TranslationSession.Configuration(
-                source: sourceLanguage.localeLanguage,
+                source: sourceLanguage?.localeLanguage,
                 target: targetLanguage.localeLanguage
             )
         ) { session in
             await model.translate(using: session)
         }
+    }
+
+    private var sourceLanguageLabel: String {
+        if let sourceLanguage {
+            return sourceLanguage.uppercaseDisplayName
+        }
+        if let detectedSourceLanguage = model.detectedSourceLanguage {
+            return "DETECTED: \(detectedSourceLanguage.uppercaseDisplayName)"
+        }
+        return "DETECTING LANGUAGE…"
     }
 
     private var header: some View {
@@ -214,7 +233,7 @@ final class TranslationPanelController {
 
     func show(
         sourceText: String,
-        sourceLanguage: TranslationLanguage,
+        sourceLanguage: TranslationLanguage?,
         targetLanguage: TranslationLanguage,
         near region: CGRect,
         showsOriginalText: Bool = true,

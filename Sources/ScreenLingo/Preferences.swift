@@ -1,6 +1,7 @@
 import AppKit
 import Carbon
 import Foundation
+import ScreenLingoCore
 
 struct HotKeyShortcut: Equatable {
     let keyCode: UInt32
@@ -152,7 +153,10 @@ final class ScreenLingoPreferences {
     }
 
     var sourceLanguageIdentifier: String {
-        get { defaults.string(forKey: Key.sourceLanguage) ?? "en" }
+        get {
+            defaults.string(forKey: Key.sourceLanguage)
+                ?? LanguagePairPolicy.automaticSourceIdentifier
+        }
         set { defaults.set(newValue, forKey: Key.sourceLanguage) }
     }
 
