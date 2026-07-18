@@ -19,6 +19,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         appController = AppController()
+        if CommandLine.arguments.contains("--settings") {
+            DispatchQueue.main.async { [weak self] in
+                self?.appController?.showSettings()
+            }
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {

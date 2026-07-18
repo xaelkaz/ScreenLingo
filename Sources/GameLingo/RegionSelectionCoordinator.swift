@@ -117,6 +117,7 @@ final class SelectionWindow: NSPanel {
         backgroundColor = .clear
         isOpaque = false
         hasShadow = false
+        sharingType = .none
         ignoresMouseEvents = false
         acceptsMouseMovedEvents = true
         isReleasedWhenClosed = false

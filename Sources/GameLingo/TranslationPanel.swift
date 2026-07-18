@@ -39,10 +39,19 @@ final class TranslationResultModel: ObservableObject {
 
 struct TranslationCardView: View {
     @ObservedObject var model: TranslationResultModel
+    let showsOriginalText: Bool
+    let isLive: Bool
     let onClose: () -> Void
 
-    init(model: TranslationResultModel, onClose: @escaping () -> Void) {
+    init(
+        model: TranslationResultModel,
+        showsOriginalText: Bool,
+        isLive: Bool,
+        onClose: @escaping () -> Void
+    ) {
         self.model = model
+        self.showsOriginalText = showsOriginalText
+        self.isLive = isLive
         self.onClose = onClose
     }
 
@@ -53,7 +62,9 @@ struct TranslationCardView: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    textBlock(label: "INGLÉS", text: model.sourceText, color: .secondary)
+                    if showsOriginalText {
+                        textBlock(label: "INGLÉS", text: model.sourceText, color: .secondary)
+                    }
 
                     switch model.state {
                     case .translating:
@@ -99,6 +110,14 @@ struct TranslationCardView: View {
                 .foregroundStyle(.yellow)
             Text("GameLingo")
                 .font(.headline)
+            if isLive {
+                Text("EN VIVO")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(.black)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .background(.yellow, in: Capsule())
+            }
             Spacer()
             Text("⌥⌘T")
                 .font(.caption.monospaced())
@@ -169,7 +188,12 @@ final class TranslationPanelController {
     private var panel: TranslationPanel?
     private var model: TranslationResultModel?
 
-    func show(sourceText: String, near region: CGRect) {
+    func show(
+        sourceText: String,
+        near region: CGRect,
+        showsOriginalText: Bool = true,
+        isLive: Bool = false
+    ) {
         close()
 
         let model = TranslationResultModel(sourceText: sourceText)
@@ -186,9 +210,15 @@ final class TranslationPanelController {
             self?.close()
         }
 
-        panel.contentView = NSHostingView(rootView: TranslationCardView(model: model) { [weak self] in
-            self?.close()
-        })
+        panel.contentView = NSHostingView(
+            rootView: TranslationCardView(
+                model: model,
+                showsOriginalText: showsOriginalText,
+                isLive: isLive
+            ) { [weak self] in
+                self?.close()
+            }
+        )
         panel.setFrameOrigin(origin(for: panel.frame.size, near: region))
         panel.orderFrontRegardless()
     }
@@ -237,6 +267,7 @@ final class TranslationPanel: NSPanel {
         backgroundColor = .clear
         isOpaque = false
         hasShadow = true
+        sharingType = .none
         isMovableByWindowBackground = true
         isReleasedWhenClosed = false
     }

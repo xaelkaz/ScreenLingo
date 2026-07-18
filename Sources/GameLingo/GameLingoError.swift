@@ -6,6 +6,8 @@ enum GameLingoError: LocalizedError {
     case captureFailed(Error)
     case ocrFailed(Error)
     case noTextFound
+    case liveRegionMustFitSingleDisplay
+    case liveSetupFailed
 
     var title: String {
         switch self {
@@ -19,6 +21,10 @@ enum GameLingoError: LocalizedError {
             return "No se pudo leer el texto"
         case .noTextFound:
             return "No encontré texto en inglés"
+        case .liveRegionMustFitSingleDisplay:
+            return "La región automática cruza dos pantallas"
+        case .liveSetupFailed:
+            return "No se pudo iniciar el modo automático"
         }
     }
 
@@ -34,6 +40,10 @@ enum GameLingoError: LocalizedError {
             return "Vision no pudo analizar la imagen. Detalle: \(error.localizedDescription)"
         case .noTextFound:
             return "Prueba seleccionando un área más ajustada al diálogo o aumentando el tamaño del texto del juego."
+        case .liveRegionMustFitSingleDisplay:
+            return "Selecciona una zona de diálogo que esté completamente dentro de un solo monitor."
+        case .liveSetupFailed:
+            return "GameLingo no encontró la pantalla seleccionada. Intenta seleccionar la región nuevamente."
         }
     }
 }

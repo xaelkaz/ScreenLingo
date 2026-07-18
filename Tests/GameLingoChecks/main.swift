@@ -52,9 +52,14 @@ check(
     "ordena palabras OCR de izquierda a derecha"
 )
 
+check(
+    LiveTextNormalizer.normalize("  The   SAME\nDialogue  ") == "the same dialogue",
+    "normaliza texto para evitar traducciones duplicadas"
+)
+
 if failures > 0 {
     print("\n\(failures) comprobación(es) fallaron.")
     exit(EXIT_FAILURE)
 }
 
-print("\n4 comprobaciones pasaron.")
+print("\n5 comprobaciones pasaron.")
