@@ -95,7 +95,7 @@ struct HotKeyShortcut: Equatable {
     }
 }
 
-final class GameLingoPreferences {
+final class ScreenLingoPreferences {
     private enum Key {
         static let shortcutKeyCode = "captureShortcut.keyCode"
         static let shortcutModifiers = "captureShortcut.modifiers"

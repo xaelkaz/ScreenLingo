@@ -1,7 +1,7 @@
 import AppKit
 
 @main
-enum GameLingoApp {
+enum ScreenLingoApp {
     @MainActor private static let delegate = AppDelegate()
 
     @MainActor

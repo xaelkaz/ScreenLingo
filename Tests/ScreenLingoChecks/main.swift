@@ -1,6 +1,6 @@
 import CoreGraphics
 import Darwin
-import GameLingoCore
+import ScreenLingoCore
 
 private var failures = 0
 

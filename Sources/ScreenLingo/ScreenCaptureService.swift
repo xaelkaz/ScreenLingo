@@ -1,6 +1,6 @@
 import AppKit
 import CoreGraphics
-import GameLingoCore
+import ScreenLingoCore
 import ScreenCaptureKit
 
 final class ScreenCaptureService {
@@ -14,7 +14,7 @@ final class ScreenCaptureService {
     @available(macOS 15.2, *)
     private func captureAvailable(appKitRegion: CGRect) async throws -> CGImage {
         guard appKitRegion.width > 0, appKitRegion.height > 0 else {
-            throw GameLingoError.invalidRegion
+            throw ScreenLingoError.invalidRegion
         }
 
         let primaryScreenMaxY = await MainActor.run {
@@ -28,20 +28,20 @@ final class ScreenCaptureService {
         do {
             return try await SCScreenshotManager.captureImage(in: captureRect)
         } catch {
-            throw GameLingoError.captureFailed(error)
+            throw ScreenLingoError.captureFailed(error)
         }
     }
 
     func capture(appKitRegion: CGRect) async throws -> CGImage {
         guard #available(macOS 15.2, *) else {
-            throw GameLingoError.unsupportedSystem
+            throw ScreenLingoError.unsupportedSystem
         }
         return try await captureAvailable(appKitRegion: appKitRegion)
     }
 
     func makeLiveCapture(appKitRegion: CGRect) async throws -> LiveRegionCapture {
         guard #available(macOS 15.2, *) else {
-            throw GameLingoError.unsupportedSystem
+            throw ScreenLingoError.unsupportedSystem
         }
         return try await makeLiveCaptureAvailable(appKitRegion: appKitRegion)
     }
@@ -49,7 +49,7 @@ final class ScreenCaptureService {
     @available(macOS 15.2, *)
     private func makeLiveCaptureAvailable(appKitRegion: CGRect) async throws -> LiveRegionCapture {
         guard appKitRegion.width > 0, appKitRegion.height > 0 else {
-            throw GameLingoError.invalidRegion
+            throw ScreenLingoError.invalidRegion
         }
 
         let screenDescriptor = await MainActor.run { () -> (CGDirectDisplayID, CGFloat)? in
@@ -62,7 +62,7 @@ final class ScreenCaptureService {
         }
 
         guard let (displayID, primaryMaxY) = screenDescriptor else {
-            throw GameLingoError.liveRegionMustFitSingleDisplay
+            throw ScreenLingoError.liveRegionMustFitSingleDisplay
         }
 
         do {
@@ -71,7 +71,7 @@ final class ScreenCaptureService {
                 onScreenWindowsOnly: false
             )
             guard let display = content.displays.first(where: { $0.displayID == displayID }) else {
-                throw GameLingoError.liveSetupFailed
+                throw ScreenLingoError.liveSetupFailed
             }
 
             let ownApplications = content.applications.filter { application in
@@ -95,7 +95,7 @@ final class ScreenCaptureService {
                   localRect.minY >= 0,
                   localRect.maxX <= display.frame.width,
                   localRect.maxY <= display.frame.height else {
-                throw GameLingoError.liveRegionMustFitSingleDisplay
+                throw ScreenLingoError.liveRegionMustFitSingleDisplay
             }
 
             let configuration = SCStreamConfiguration()
@@ -106,10 +106,10 @@ final class ScreenCaptureService {
             configuration.capturesAudio = false
 
             return LiveRegionCapture(filter: filter, configuration: configuration)
-        } catch let error as GameLingoError {
+        } catch let error as ScreenLingoError {
             throw error
         } catch {
-            throw GameLingoError.captureFailed(error)
+            throw ScreenLingoError.captureFailed(error)
         }
     }
 }
@@ -130,7 +130,7 @@ final class LiveRegionCapture {
                 configuration: configuration
             )
         } catch {
-            throw GameLingoError.captureFailed(error)
+            throw ScreenLingoError.captureFailed(error)
         }
     }
 }

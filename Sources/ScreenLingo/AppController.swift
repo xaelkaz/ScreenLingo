@@ -1,7 +1,7 @@
 import AppKit
 import Carbon
 import CoreGraphics
-import GameLingoCore
+import ScreenLingoCore
 
 @MainActor
 final class AppController: NSObject {
@@ -15,7 +15,7 @@ final class AppController: NSObject {
     private let captureService = ScreenCaptureService()
     private let textRecognizer = TextRecognizer()
     private let panelController = TranslationPanelController()
-    private let preferences = GameLingoPreferences()
+    private let preferences = ScreenLingoPreferences()
 
     private var settingsController: SettingsWindowController?
     private var captureHotKey: GlobalHotKey?
@@ -68,8 +68,8 @@ final class AppController: NSObject {
 
     private func configureStatusItem() {
         if let button = statusItem.button {
-            button.image = NSImage(systemSymbolName: "character.bubble", accessibilityDescription: "GameLingo")
-            button.toolTip = "GameLingo — translate text on screen"
+            button.image = NSImage(systemSymbolName: "character.bubble", accessibilityDescription: "ScreenLingo")
+            button.toolTip = "ScreenLingo — translate text on screen"
         }
 
         let menu = NSMenu()
@@ -105,13 +105,13 @@ final class AppController: NSObject {
         settingsItem.target = self
         menu.addItem(settingsItem)
 
-        let aboutItem = NSMenuItem(title: "About GameLingo", action: #selector(showAbout), keyEquivalent: "")
+        let aboutItem = NSMenuItem(title: "About ScreenLingo", action: #selector(showAbout), keyEquivalent: "")
         aboutItem.target = self
         menu.addItem(aboutItem)
 
         menu.addItem(.separator())
 
-        let quitItem = NSMenuItem(title: "Quit GameLingo", action: #selector(quit), keyEquivalent: "q")
+        let quitItem = NSMenuItem(title: "Quit ScreenLingo", action: #selector(quit), keyEquivalent: "q")
         quitItem.target = self
         menu.addItem(quitItem)
 
@@ -331,7 +331,7 @@ final class AppController: NSObject {
                 )
             } catch is CancellationError {
                 // A new operation replaced this request.
-            } catch let error as GameLingoError {
+            } catch let error as ScreenLingoError {
                 showError(title: error.title, message: error.localizedDescription)
             } catch {
                 showError(title: "This region could not be translated", message: error.localizedDescription)
@@ -397,7 +397,7 @@ final class AppController: NSObject {
                                 shortcutDisplayName: preferences.captureShortcut.displayName
                             )
                         }
-                    } catch GameLingoError.noTextFound {
+                    } catch ScreenLingoError.noTextFound {
                         lastNormalizedText = nil
                         panelController.close()
                     }
@@ -406,7 +406,7 @@ final class AppController: NSObject {
                 }
             } catch is CancellationError {
                 // Expected when the user stops live subtitles.
-            } catch let error as GameLingoError {
+            } catch let error as ScreenLingoError {
                 showError(title: error.title, message: error.localizedDescription)
             } catch {
                 showError(title: "Live subtitles stopped", message: error.localizedDescription)
@@ -439,7 +439,7 @@ final class AppController: NSObject {
         guard liveTask == nil else { return }
         statusItem.button?.image = NSImage(
             systemSymbolName: busy ? "ellipsis.bubble" : "character.bubble",
-            accessibilityDescription: busy ? "Processing" : "GameLingo"
+            accessibilityDescription: busy ? "Processing" : "ScreenLingo"
         )
     }
 
@@ -447,18 +447,18 @@ final class AppController: NSObject {
         liveItem?.title = active ? "Stop Live Subtitles" : "Start Live Subtitles"
         statusItem.button?.image = NSImage(
             systemSymbolName: active ? "captions.bubble.fill" : "character.bubble",
-            accessibilityDescription: active ? "Live subtitles active" : "GameLingo"
+            accessibilityDescription: active ? "Live subtitles active" : "ScreenLingo"
         )
         statusItem.button?.toolTip = active
-            ? "GameLingo — live subtitles active"
-            : "GameLingo — translate text on screen"
+            ? "ScreenLingo — live subtitles active"
+            : "ScreenLingo — translate text on screen"
     }
 
     private func showCapturePermissionAlert() {
         let alert = NSAlert()
         alert.alertStyle = .informational
-        alert.messageText = "GameLingo needs access to your screen"
-        alert.informativeText = "Allow GameLingo in System Settings → Privacy & Security → Screen & System Audio Recording. You may need to quit and reopen the app once."
+        alert.messageText = "ScreenLingo needs access to your screen"
+        alert.informativeText = "Allow ScreenLingo in System Settings → Privacy & Security → Screen & System Audio Recording. You may need to quit and reopen the app once."
         alert.addButton(withTitle: "Open Settings")
         alert.addButton(withTitle: "Not Now")
 
@@ -490,7 +490,7 @@ final class AppController: NSObject {
 
     @objc private func showAbout() {
         let alert = NSAlert()
-        alert.messageText = "GameLingo"
+        alert.messageText = "ScreenLingo"
         let source = TranslationLanguage(identifier: preferences.sourceLanguageIdentifier).displayName
         let target = TranslationLanguage(identifier: preferences.targetLanguageIdentifier).displayName
         alert.informativeText = "Translate game text from \(source) to \(target) and create live subtitles.\n\nTranslate: \(preferences.captureShortcut.displayName)\nRepeat region: ⌥⌘R\nLive subtitles: ⌥⌘S\n\nAll processing happens on your Mac."

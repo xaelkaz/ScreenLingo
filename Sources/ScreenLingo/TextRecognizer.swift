@@ -1,6 +1,6 @@
 import CoreGraphics
 import Foundation
-import GameLingoCore
+import ScreenLingoCore
 import Vision
 
 final class TextRecognizer {
@@ -24,7 +24,7 @@ final class TextRecognizer {
         guard let recognitionLanguage = Self.recognitionLanguageIdentifier(
             for: sourceLanguageIdentifier
         ) else {
-            throw GameLingoError.unsupportedOCRLanguage(
+            throw ScreenLingoError.unsupportedOCRLanguage(
                 TranslationLanguage(identifier: sourceLanguageIdentifier).displayName
             )
         }
@@ -33,7 +33,7 @@ final class TextRecognizer {
             DispatchQueue.global(qos: .userInitiated).async {
                 let request = VNRecognizeTextRequest { request, error in
                     if let error {
-                        continuation.resume(throwing: GameLingoError.ocrFailed(error))
+                        continuation.resume(throwing: ScreenLingoError.ocrFailed(error))
                         return
                     }
 
@@ -54,7 +54,7 @@ final class TextRecognizer {
                         .joined(separator: "\n")
 
                     guard !text.isEmpty else {
-                        continuation.resume(throwing: GameLingoError.noTextFound)
+                        continuation.resume(throwing: ScreenLingoError.noTextFound)
                         return
                     }
                     continuation.resume(returning: text)
@@ -69,7 +69,7 @@ final class TextRecognizer {
                     let handler = VNImageRequestHandler(cgImage: image, orientation: .up)
                     try handler.perform([request])
                 } catch {
-                    continuation.resume(throwing: GameLingoError.ocrFailed(error))
+                    continuation.resume(throwing: ScreenLingoError.ocrFailed(error))
                 }
             }
         }

@@ -1,6 +1,6 @@
 import Foundation
 
-enum GameLingoError: LocalizedError {
+enum ScreenLingoError: LocalizedError {
     case unsupportedSystem
     case invalidRegion
     case captureFailed(Error)
@@ -34,7 +34,7 @@ enum GameLingoError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .unsupportedSystem:
-            return "GameLingo requires macOS 15.2 or later."
+            return "ScreenLingo requires macOS 15.2 or later."
         case .invalidRegion:
             return "Select an area of at least 8 × 8 points."
         case .captureFailed(let error):
@@ -48,7 +48,7 @@ enum GameLingoError: LocalizedError {
         case .liveRegionMustFitSingleDisplay:
             return "Select a dialogue area that is fully contained within a single display."
         case .liveSetupFailed:
-            return "GameLingo could not find the selected display. Select the region again."
+            return "ScreenLingo could not find the selected display. Select the region again."
         }
     }
 }

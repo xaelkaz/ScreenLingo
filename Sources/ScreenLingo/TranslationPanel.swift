@@ -127,7 +127,7 @@ struct TranslationCardView: View {
         HStack(spacing: 10) {
             Image(systemName: "character.bubble.fill")
                 .foregroundStyle(.yellow)
-            Text("GameLingo")
+            Text("ScreenLingo")
                 .font(.headline)
             if isLive {
                 Text("LIVE")

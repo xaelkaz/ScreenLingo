@@ -3,7 +3,7 @@ import Carbon
 
 @MainActor
 final class SettingsWindowController: NSObject, NSWindowDelegate {
-    private let preferences: GameLingoPreferences
+    private let preferences: ScreenLingoPreferences
     private let onShortcutChange: (HotKeyShortcut) -> Bool
     private let onRecordingStateChange: (Bool) -> Void
     private let onLanguageChange: () -> Void
@@ -18,7 +18,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
     private var isRecordingShortcut = false
 
     init(
-        preferences: GameLingoPreferences,
+        preferences: ScreenLingoPreferences,
         onShortcutChange: @escaping (HotKeyShortcut) -> Bool,
         onRecordingStateChange: @escaping (Bool) -> Void,
         onLanguageChange: @escaping () -> Void
@@ -58,7 +58,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
             backing: .buffered,
             defer: false
         )
-        window.title = "GameLingo Settings"
+        window.title = "ScreenLingo Settings"
         window.isReleasedWhenClosed = false
         window.delegate = self
         self.window = window
@@ -72,7 +72,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
 
         let title = label("Settings", size: 22, weight: .bold)
         let subtitle = label(
-            "Choose your languages and customize how GameLingo works.",
+            "Choose your languages and customize how ScreenLingo works.",
             size: 13,
             color: .secondaryLabelColor
         )
