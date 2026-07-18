@@ -1,5 +1,6 @@
 import CoreGraphics
 import Foundation
+import NaturalLanguage
 import ScreenLingoCore
 import Vision
 
@@ -19,14 +20,20 @@ final class TextRecognizer {
 
     func recognizeText(
         in image: CGImage,
-        sourceLanguageIdentifier: String
+        sourceLanguageIdentifier: String?
     ) async throws -> String {
-        guard let recognitionLanguage = Self.recognitionLanguageIdentifier(
-            for: sourceLanguageIdentifier
-        ) else {
-            throw ScreenLingoError.unsupportedOCRLanguage(
-                TranslationLanguage(identifier: sourceLanguageIdentifier).displayName
-            )
+        let recognitionLanguage: String?
+        if let sourceLanguageIdentifier {
+            guard let supportedLanguage = Self.recognitionLanguageIdentifier(
+                for: sourceLanguageIdentifier
+            ) else {
+                throw ScreenLingoError.unsupportedOCRLanguage(
+                    TranslationLanguage(identifier: sourceLanguageIdentifier).displayName
+                )
+            }
+            recognitionLanguage = supportedLanguage
+        } else {
+            recognitionLanguage = nil
         }
 
         return try await withCheckedThrowingContinuation { continuation in
@@ -57,11 +64,22 @@ final class TextRecognizer {
                         continuation.resume(throwing: ScreenLingoError.noTextFound)
                         return
                     }
+
+                    if recognitionLanguage == nil,
+                       let detectedLanguage = NLLanguageRecognizer.dominantLanguage(for: text),
+                       TranslationLanguageCatalog.isExcluded(identifier: detectedLanguage.rawValue) {
+                        continuation.resume(throwing: ScreenLingoError.excludedDetectedLanguage)
+                        return
+                    }
                     continuation.resume(returning: text)
                 }
 
                 request.recognitionLevel = .accurate
-                request.recognitionLanguages = [recognitionLanguage]
+                if let recognitionLanguage {
+                    request.recognitionLanguages = [recognitionLanguage]
+                } else {
+                    request.automaticallyDetectsLanguage = true
+                }
                 request.usesLanguageCorrection = true
                 request.minimumTextHeight = 0.012
 

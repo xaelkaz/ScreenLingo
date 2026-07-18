@@ -4,6 +4,14 @@ import Translation
 struct TranslationLanguage: Hashable, Sendable {
     let identifier: String
 
+    init(identifier: String) {
+        self.identifier = identifier
+    }
+
+    init(localeLanguage: Locale.Language) {
+        identifier = Self.identifier(for: localeLanguage)
+    }
+
     var localeLanguage: Locale.Language {
         Locale.Language(identifier: identifier)
     }
@@ -16,6 +24,16 @@ struct TranslationLanguage: Hashable, Sendable {
     var uppercaseDisplayName: String {
         displayName.uppercased(with: Locale(identifier: "en"))
     }
+
+    private static func identifier(for language: Locale.Language) -> String {
+        let components = [
+            language.languageCode?.identifier,
+            language.script?.identifier,
+            language.region?.identifier
+        ].compactMap { $0 }
+
+        return components.joined(separator: "-")
+    }
 }
 
 struct TranslationLanguageCatalog: Sendable {
@@ -27,6 +45,13 @@ struct TranslationLanguageCatalog: Sendable {
         "ja", "ko", "pl", "pt-BR", "ru", "es", "th", "tr", "vi"
     ]
     private static let excludedLanguageCodes: Set<String> = ["uk"]
+
+    static func isExcluded(identifier: String) -> Bool {
+        guard let code = Locale.Language(identifier: identifier).languageCode?.identifier else {
+            return true
+        }
+        return excludedLanguageCodes.contains(code)
+    }
 
     static func load() async -> TranslationLanguageCatalog {
         let availableLanguages = await LanguageAvailability().supportedLanguages
@@ -53,7 +78,7 @@ struct TranslationLanguageCatalog: Sendable {
     ) -> [TranslationLanguage] {
         sortedUniqueLanguages(
             languages
-            .map { TranslationLanguage(identifier: identifier(for: $0)) }
+            .map(TranslationLanguage.init(localeLanguage:))
         )
     }
 
@@ -63,24 +88,11 @@ struct TranslationLanguageCatalog: Sendable {
         var seen = Set<String>()
         return languages
             .filter { language in
-                guard let code = language.localeLanguage.languageCode?.identifier else {
-                    return false
-                }
-                return !excludedLanguageCodes.contains(code)
+                !isExcluded(identifier: language.identifier)
             }
             .filter { seen.insert($0.identifier).inserted }
             .sorted {
                 $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending
             }
-    }
-
-    private static func identifier(for language: Locale.Language) -> String {
-        let components = [
-            language.languageCode?.identifier,
-            language.script?.identifier,
-            language.region?.identifier
-        ].compactMap { $0 }
-
-        return components.joined(separator: "-")
     }
 }

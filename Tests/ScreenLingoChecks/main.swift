@@ -80,9 +80,35 @@ check(
     "rejects source languages that Vision OCR cannot recognize"
 )
 
+let sourceLanguageIdentifiers: Set<String> = ["en", "es", "fr"]
+check(
+    LanguagePairPolicy.swappedPair(
+        sourceIdentifier: "en",
+        targetIdentifier: "es",
+        availableSourceIdentifiers: sourceLanguageIdentifiers
+    ) == LanguagePair(sourceIdentifier: "es", targetIdentifier: "en"),
+    "swaps compatible source and target languages"
+)
+check(
+    LanguagePairPolicy.swappedPair(
+        sourceIdentifier: LanguagePairPolicy.automaticSourceIdentifier,
+        targetIdentifier: "es",
+        availableSourceIdentifiers: sourceLanguageIdentifiers
+    ) == nil,
+    "does not swap an automatically detected source language"
+)
+check(
+    LanguagePairPolicy.swappedPair(
+        sourceIdentifier: "en",
+        targetIdentifier: "ar",
+        availableSourceIdentifiers: sourceLanguageIdentifiers
+    ) == nil,
+    "does not swap to a source language without OCR support"
+)
+
 if failures > 0 {
     print("\n\(failures) check(s) failed.")
     exit(EXIT_FAILURE)
 }
 
-print("\n8 checks passed.")
+print("\n11 checks passed.")

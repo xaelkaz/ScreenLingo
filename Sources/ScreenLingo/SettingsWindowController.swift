@@ -1,5 +1,6 @@
 import AppKit
 import Carbon
+import ScreenLingoCore
 
 @MainActor
 final class SettingsWindowController: NSObject, NSWindowDelegate {
@@ -10,6 +11,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
     private var window: NSWindow?
     private var sourceLanguagePopup: NSPopUpButton?
     private var targetLanguagePopup: NSPopUpButton?
+    private var swapLanguagesButton: NSButton?
     private var shortcutButton: NSButton?
     private var intervalPopup: NSPopUpButton?
     private var originalTextCheckbox: NSButton?
@@ -89,10 +91,25 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         let targetLanguageRow = row(label: targetLanguageLabel, control: targetLanguagePopup)
 
         let languageHint = label(
-            "Available languages are provided by Apple Translation and Vision on this Mac.",
+            "Automatic detection uses Apple Vision and Translation.",
             size: 11,
             color: .tertiaryLabelColor
         )
+        let swapLanguagesButton = NSButton(
+            title: "Swap Languages",
+            target: self,
+            action: #selector(swapLanguages)
+        )
+        swapLanguagesButton.bezelStyle = .rounded
+        swapLanguagesButton.controlSize = .small
+        swapLanguagesButton.image = NSImage(
+            systemSymbolName: "arrow.up.arrow.down",
+            accessibilityDescription: "Swap languages"
+        )
+        swapLanguagesButton.imagePosition = .imageLeading
+        swapLanguagesButton.toolTip = "Swap source and target languages"
+        self.swapLanguagesButton = swapLanguagesButton
+        let languageActionsRow = row(label: languageHint, control: swapLanguagesButton)
 
         let shortcutLabel = label("Capture shortcut", size: 13, weight: .medium)
         let shortcutButton = NSButton(title: "", target: self, action: #selector(beginRecordingShortcut))
@@ -132,7 +149,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         resetButton.controlSize = .small
 
         let stack = NSStackView(views: [
-            title, subtitle, separator(), sourceLanguageRow, targetLanguageRow, languageHint,
+            title, subtitle, separator(), sourceLanguageRow, targetLanguageRow, languageActionsRow,
             separator(), shortcutRow, hint, intervalRow, originalTextCheckbox, resetButton
         ])
         stack.orientation = .vertical
@@ -141,7 +158,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         stack.setCustomSpacing(4, after: title)
         stack.setCustomSpacing(14, after: subtitle)
         stack.setCustomSpacing(5, after: targetLanguageRow)
-        stack.setCustomSpacing(14, after: languageHint)
+        stack.setCustomSpacing(14, after: languageActionsRow)
         stack.setCustomSpacing(5, after: shortcutRow)
         stack.setCustomSpacing(12, after: hint)
         stack.translatesAutoresizingMaskIntoConstraints = false
@@ -154,6 +171,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
             stack.bottomAnchor.constraint(lessThanOrEqualTo: effect.bottomAnchor, constant: -20),
             sourceLanguageRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
             targetLanguageRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            languageActionsRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
             shortcutRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
             intervalRow.widthAnchor.constraint(equalTo: stack.widthAnchor)
         ])
@@ -182,6 +200,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
     }
 
     private func setLanguagePopupsLoading() {
+        swapLanguagesButton?.isEnabled = false
         [sourceLanguagePopup, targetLanguagePopup].forEach { popup in
             popup?.removeAllItems()
             popup?.addItem(withTitle: "Loading languages…")
@@ -193,29 +212,40 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         populate(
             sourceLanguagePopup,
             languages: catalog.sourceLanguages,
-            selectedIdentifier: preferences.sourceLanguageIdentifier
+            selectedIdentifier: preferences.sourceLanguageIdentifier,
+            includesAutomaticDetection: true
         )
         populate(
             targetLanguagePopup,
             languages: catalog.targetLanguages,
-            selectedIdentifier: preferences.targetLanguageIdentifier
+            selectedIdentifier: preferences.targetLanguageIdentifier,
+            includesAutomaticDetection: false
         )
+        updateSwapButtonState()
     }
 
     private func populate(
         _ popup: NSPopUpButton?,
         languages: [TranslationLanguage],
-        selectedIdentifier: String
+        selectedIdentifier: String,
+        includesAutomaticDetection: Bool
     ) {
         guard let popup else { return }
         popup.removeAllItems()
 
         var options = languages
-        if !options.contains(where: { $0.identifier == selectedIdentifier }) {
+        if selectedIdentifier != LanguagePairPolicy.automaticSourceIdentifier,
+           !options.contains(where: { $0.identifier == selectedIdentifier }) {
             options.append(TranslationLanguage(identifier: selectedIdentifier))
             options.sort {
                 $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending
             }
+        }
+
+        if includesAutomaticDetection {
+            popup.addItem(withTitle: "Detect Automatically")
+            popup.lastItem?.representedObject = LanguagePairPolicy.automaticSourceIdentifier
+            popup.menu?.addItem(.separator())
         }
 
         options.forEach { language in
@@ -299,6 +329,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         }
         preferences.sourceLanguageIdentifier = identifier
         avoidIdenticalLanguagePair(changedSource: true)
+        updateSwapButtonState()
         onLanguageChange()
     }
 
@@ -308,6 +339,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         }
         preferences.targetLanguageIdentifier = identifier
         avoidIdenticalLanguagePair(changedSource: false)
+        updateSwapButtonState()
         onLanguageChange()
     }
 
@@ -318,7 +350,9 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
 
         let popup = changedSource ? targetLanguagePopup : sourceLanguagePopup
         let fallback = popup?.itemArray.first(where: {
-            ($0.representedObject as? String) != preferences.sourceLanguageIdentifier
+            guard let identifier = $0.representedObject as? String else { return false }
+            return identifier != preferences.sourceLanguageIdentifier
+                && identifier != LanguagePairPolicy.automaticSourceIdentifier
         })
         guard let identifier = fallback?.representedObject as? String else { return }
 
@@ -329,6 +363,45 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
             preferences.sourceLanguageIdentifier = identifier
             sourceLanguagePopup?.select(fallback)
         }
+    }
+
+    @objc private func swapLanguages() {
+        let availableSourceIdentifiers = Set(sourceLanguagePopup?.itemArray.compactMap {
+            $0.representedObject as? String
+        } ?? [])
+        guard let pair = LanguagePairPolicy.swappedPair(
+            sourceIdentifier: preferences.sourceLanguageIdentifier,
+            targetIdentifier: preferences.targetLanguageIdentifier,
+            availableSourceIdentifiers: availableSourceIdentifiers
+        ) else {
+            NSSound.beep()
+            return
+        }
+
+        preferences.sourceLanguageIdentifier = pair.sourceIdentifier
+        preferences.targetLanguageIdentifier = pair.targetIdentifier
+        selectLanguage(pair.sourceIdentifier, in: sourceLanguagePopup)
+        selectLanguage(pair.targetIdentifier, in: targetLanguagePopup)
+        updateSwapButtonState()
+        onLanguageChange()
+    }
+
+    private func updateSwapButtonState() {
+        let availableSourceIdentifiers = Set(sourceLanguagePopup?.itemArray.compactMap {
+            $0.representedObject as? String
+        } ?? [])
+        swapLanguagesButton?.isEnabled = LanguagePairPolicy.swappedPair(
+            sourceIdentifier: preferences.sourceLanguageIdentifier,
+            targetIdentifier: preferences.targetLanguageIdentifier,
+            availableSourceIdentifiers: availableSourceIdentifiers
+        ) != nil
+    }
+
+    private func selectLanguage(_ identifier: String, in popup: NSPopUpButton?) {
+        guard let item = popup?.itemArray.first(where: {
+            ($0.representedObject as? String) == identifier
+        }) else { return }
+        popup?.select(item)
     }
 
     @objc private func originalTextChanged() {
