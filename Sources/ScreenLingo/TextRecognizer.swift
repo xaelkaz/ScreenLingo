@@ -1,15 +1,39 @@
 import CoreGraphics
 import Foundation
-import GameLingoCore
+import ScreenLingoCore
 import Vision
 
 final class TextRecognizer {
-    func recognizeText(in image: CGImage) async throws -> String {
-        try await withCheckedThrowingContinuation { continuation in
+    private static let supportedRecognitionLanguages: [String] = {
+        let request = VNRecognizeTextRequest()
+        request.recognitionLevel = .accurate
+        return (try? request.supportedRecognitionLanguages()) ?? ["en-US"]
+    }()
+
+    static func recognitionLanguageIdentifier(for translationIdentifier: String) -> String? {
+        LanguageIdentifierMatcher.bestMatch(
+            for: translationIdentifier,
+            among: supportedRecognitionLanguages
+        )
+    }
+
+    func recognizeText(
+        in image: CGImage,
+        sourceLanguageIdentifier: String
+    ) async throws -> String {
+        guard let recognitionLanguage = Self.recognitionLanguageIdentifier(
+            for: sourceLanguageIdentifier
+        ) else {
+            throw ScreenLingoError.unsupportedOCRLanguage(
+                TranslationLanguage(identifier: sourceLanguageIdentifier).displayName
+            )
+        }
+
+        return try await withCheckedThrowingContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
                 let request = VNRecognizeTextRequest { request, error in
                     if let error {
-                        continuation.resume(throwing: GameLingoError.ocrFailed(error))
+                        continuation.resume(throwing: ScreenLingoError.ocrFailed(error))
                         return
                     }
 
@@ -30,14 +54,14 @@ final class TextRecognizer {
                         .joined(separator: "\n")
 
                     guard !text.isEmpty else {
-                        continuation.resume(throwing: GameLingoError.noTextFound)
+                        continuation.resume(throwing: ScreenLingoError.noTextFound)
                         return
                     }
                     continuation.resume(returning: text)
                 }
 
                 request.recognitionLevel = .accurate
-                request.recognitionLanguages = ["en-US"]
+                request.recognitionLanguages = [recognitionLanguage]
                 request.usesLanguageCorrection = true
                 request.minimumTextHeight = 0.012
 
@@ -45,7 +69,7 @@ final class TextRecognizer {
                     let handler = VNImageRequestHandler(cgImage: image, orientation: .up)
                     try handler.perform([request])
                 } catch {
-                    continuation.resume(throwing: GameLingoError.ocrFailed(error))
+                    continuation.resume(throwing: ScreenLingoError.ocrFailed(error))
                 }
             }
         }

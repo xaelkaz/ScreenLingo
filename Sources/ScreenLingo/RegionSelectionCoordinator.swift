@@ -117,6 +117,7 @@ final class SelectionWindow: NSPanel {
         backgroundColor = .clear
         isOpaque = false
         hasShadow = false
+        sharingType = .none
         ignoresMouseEvents = false
         acceptsMouseMovedEvents = true
         isReleasedWhenClosed = false
@@ -187,7 +188,7 @@ final class RegionSelectionView: NSView {
     }
 
     private func drawInstruction() {
-        let text = "Arrastra para seleccionar el texto  •  Esc para cancelar"
+        let text = "Drag to select text  •  Esc to cancel"
         let attributes: [NSAttributedString.Key: Any] = [
             .font: NSFont.systemFont(ofSize: 15, weight: .semibold),
             .foregroundColor: NSColor.white

@@ -1,6 +1,6 @@
 import CoreGraphics
 import Darwin
-import GameLingoCore
+import ScreenLingoCore
 
 private var failures = 0
 
@@ -20,7 +20,7 @@ let captureRect = ScreenCoordinateConverter.screenCaptureRect(
 )
 check(
     captureRect == CGRect(x: 100, y: 550, width: 300, height: 200),
-    "convierte coordenadas AppKit a ScreenCaptureKit"
+    "converts AppKit coordinates to ScreenCaptureKit"
 )
 
 let regionAbovePrimary = CGRect(x: 20, y: 950, width: 200, height: 100)
@@ -30,7 +30,7 @@ let captureAbovePrimary = ScreenCoordinateConverter.screenCaptureRect(
 )
 check(
     captureAbovePrimary == CGRect(x: 20, y: -150, width: 200, height: 100),
-    "convierte coordenadas de un monitor sobre el principal"
+    "converts coordinates from a display above the primary display"
 )
 
 let verticalLines = [
@@ -40,7 +40,7 @@ let verticalLines = [
 ]
 check(
     RecognizedLineSorter.readingOrder(verticalLines).map(\.text) == ["first", "second", "third"],
-    "ordena líneas OCR de arriba hacia abajo"
+    "orders OCR lines from top to bottom"
 )
 
 let horizontalWords = [
@@ -49,12 +49,40 @@ let horizontalWords = [
 ]
 check(
     RecognizedLineSorter.readingOrder(horizontalWords).map(\.text) == ["hello", "world"],
-    "ordena palabras OCR de izquierda a derecha"
+    "orders OCR words from left to right"
+)
+
+check(
+    LiveTextNormalizer.normalize("  The   SAME\nDialogue  ") == "the same dialogue",
+    "normalizes text to avoid duplicate translations"
+)
+
+let ocrLanguageIdentifiers = ["en-US", "pt-BR", "zh-Hans", "zh-Hant"]
+check(
+    LanguageIdentifierMatcher.bestMatch(
+        for: "zh-Hant",
+        among: ocrLanguageIdentifiers
+    ) == "zh-Hant",
+    "preserves the requested writing system when matching OCR languages"
+)
+check(
+    LanguageIdentifierMatcher.bestMatch(
+        for: "pt-PT",
+        among: ocrLanguageIdentifiers
+    ) == "pt-BR",
+    "falls back to another region of the same OCR language"
+)
+check(
+    LanguageIdentifierMatcher.bestMatch(
+        for: "el",
+        among: ocrLanguageIdentifiers
+    ) == nil,
+    "rejects source languages that Vision OCR cannot recognize"
 )
 
 if failures > 0 {
-    print("\n\(failures) comprobación(es) fallaron.")
+    print("\n\(failures) check(s) failed.")
     exit(EXIT_FAILURE)
 }
 
-print("\n4 comprobaciones pasaron.")
+print("\n8 checks passed.")

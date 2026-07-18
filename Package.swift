@@ -3,28 +3,28 @@
 import PackageDescription
 
 let package = Package(
-    name: "GameLingo",
+    name: "ScreenLingo",
     platforms: [
         .macOS(.v15)
     ],
     products: [
-        .executable(name: "GameLingo", targets: ["GameLingo"]),
-        .executable(name: "GameLingoChecks", targets: ["GameLingoChecks"])
+        .executable(name: "ScreenLingo", targets: ["ScreenLingo"]),
+        .executable(name: "ScreenLingoChecks", targets: ["ScreenLingoChecks"])
     ],
     targets: [
         .target(
-            name: "GameLingoCore",
-            path: "Sources/GameLingoCore"
+            name: "ScreenLingoCore",
+            path: "Sources/ScreenLingoCore"
         ),
         .executableTarget(
-            name: "GameLingo",
-            dependencies: ["GameLingoCore"],
-            path: "Sources/GameLingo"
+            name: "ScreenLingo",
+            dependencies: ["ScreenLingoCore"],
+            path: "Sources/ScreenLingo"
         ),
         .executableTarget(
-            name: "GameLingoChecks",
-            dependencies: ["GameLingoCore"],
-            path: "Tests/GameLingoChecks"
+            name: "ScreenLingoChecks",
+            dependencies: ["ScreenLingoCore"],
+            path: "Tests/ScreenLingoChecks"
         )
     ],
     swiftLanguageModes: [.v5]

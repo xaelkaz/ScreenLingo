@@ -1,13 +1,14 @@
 import AppKit
 
 @main
-enum GameLingoApp {
+enum ScreenLingoApp {
     @MainActor private static let delegate = AppDelegate()
 
     @MainActor
     static func main() {
         let application = NSApplication.shared
-        application.setActivationPolicy(.accessory)
+        let opensSettingsForQA = CommandLine.arguments.contains("--settings")
+        application.setActivationPolicy(opensSettingsForQA ? .regular : .accessory)
         application.delegate = delegate
         application.run()
     }
@@ -19,6 +20,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         appController = AppController()
+        if CommandLine.arguments.contains("--settings") {
+            DispatchQueue.main.async { [weak self] in
+                self?.appController?.showSettings()
+            }
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {

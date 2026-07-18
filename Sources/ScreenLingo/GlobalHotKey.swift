@@ -10,6 +10,7 @@ enum GlobalHotKeyError: Error {
 final class GlobalHotKey {
     private var hotKeyRef: EventHotKeyRef?
     private var handlerRef: EventHandlerRef?
+    private let identifier: UInt32
     private let action: () -> Void
 
     private static let signature: OSType = 0x474C4E47 // "GLNG"
@@ -28,18 +29,21 @@ final class GlobalHotKey {
             &hotKeyID
         )
 
-        guard result == noErr, hotKeyID.signature == GlobalHotKey.signature else {
+        let instance = Unmanaged<GlobalHotKey>.fromOpaque(userData).takeUnretainedValue()
+        guard result == noErr,
+              hotKeyID.signature == GlobalHotKey.signature,
+              hotKeyID.id == instance.identifier else {
             return OSStatus(eventNotHandledErr)
         }
 
-        let instance = Unmanaged<GlobalHotKey>.fromOpaque(userData).takeUnretainedValue()
         DispatchQueue.main.async {
             instance.action()
         }
         return noErr
     }
 
-    init(keyCode: UInt32, modifiers: UInt32, action: @escaping () -> Void) throws {
+    init(identifier: UInt32, keyCode: UInt32, modifiers: UInt32, action: @escaping () -> Void) throws {
+        self.identifier = identifier
         self.action = action
 
         var eventType = EventTypeSpec(
@@ -60,11 +64,11 @@ final class GlobalHotKey {
             throw GlobalHotKeyError.handlerRegistrationFailed(handlerStatus)
         }
 
-        let identifier = EventHotKeyID(signature: Self.signature, id: 1)
+        let hotKeyIdentifier = EventHotKeyID(signature: Self.signature, id: identifier)
         let registrationStatus = RegisterEventHotKey(
             keyCode,
             modifiers,
-            identifier,
+            hotKeyIdentifier,
             GetApplicationEventTarget(),
             0,
             &hotKeyRef
